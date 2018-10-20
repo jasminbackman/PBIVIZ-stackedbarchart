@@ -25,7 +25,11 @@ module powerbi.extensibility.visual {
      * @property {string} category      - Data value category.
      * @property {number} category_num  - Category as a number.
      */
-    interface BarChartDataPoint {category: string; category_num: number;};
+    interface BarChartDataPoint {
+        category: string; 
+        category_num: number;
+        selectionId: ISelectionId;
+    };
 
      /**
      * Function that converts queried data into a view model that will be used by the visual.
@@ -92,6 +96,7 @@ module powerbi.extensibility.visual {
         for(let i = 0, len = categories.length; i < len; i++){
             let point = {category: categories[i], category_num: i};
             barChartDataPoints[i] = point;
+
             for(let j = 0, len2 = categorical.values.length; j < len2; j++)
             {
                 let dataValue: number = <number>categorical.values[j].values[i];
@@ -102,10 +107,11 @@ module powerbi.extensibility.visual {
                 if(dataValue > dataMax){
                     dataMax = dataValue;
                 }
+                barChartDataPoints[i].selectionId = host.createSelectionIdBuilder()
+                .withCategory(category, i)
+                .withSeries(categorical.values, categorical.values[j])
+                .createSelectionId();
                 categories.push(series.toString());
-                const selectionId: ISelectionId = host.createSelectionIdBuilder()
-                    .withCategory(category, j)
-                    .createSelectionId();
                 barChartDataPoints[i][series] = dataValue;
             }
         }
@@ -122,12 +128,10 @@ module powerbi.extensibility.visual {
     export class ClusteredStackedChart implements IVisual {
         private svg: d3.Selection<SVGElement>;
         private host: IVisualHost;
-        private barChartContainer: d3.Selection<SVGElement>;
         private barContainer: d3.Selection<SVGElement>;
         private xAxis: d3.Selection<SVGElement>;
         private yAxis: d3.Selection<SVGElement>;
-        private groups: any;
-        private bars: any;
+        private selectionManager: ISelectionManager;
 
         static Config = {
             xScalePadding: 0.1,
@@ -147,6 +151,7 @@ module powerbi.extensibility.visual {
          */
         constructor(options: VisualConstructorOptions) {
             this.host = options.host;
+            this.selectionManager = options.host.createSelectionManager();
             let svg = this.svg = d3.select(options.element)
                 .append('svg')
                 .classed('barChart', true);
@@ -173,7 +178,8 @@ module powerbi.extensibility.visual {
         public update(options: VisualUpdateOptions) {
 
             let viewModel: BarChartViewModel = visualTransform(options, this.host);
-
+            let selectionManager = this.selectionManager;
+            let allowInteractions = this.host.allowInteractions;
             let width = options.viewport.width;
             let height = options.viewport.height;
 
@@ -185,7 +191,13 @@ module powerbi.extensibility.visual {
 
             let dataset = d3.layout.stack()(viewModel.subCategories.map(function(d){
                 return data.map(function(e){
-                    return {x: e.category_num, y: e[d], category: e.category, subcategory: d};
+                    return {
+                        x: e.category_num, 
+                        y: e[d], 
+                        category: e.category, 
+                        subcategory: d,
+                        selectionId: e.selectionId
+                    };
                 });
             }));
 
@@ -217,34 +229,53 @@ module powerbi.extensibility.visual {
             let colors = ["#b33040", "#d25c4d", "#f2b447", "#d9d574"];
 
             // Bind data
-            this.groups = this.barContainer.selectAll("g.stackedsection")
+            let groups: any = this.barContainer.selectAll("g.stackedsection")
             .data(dataset);
-            this.bars = this.groups.selectAll(".bar")
-            .data(function(d){ return d; });
 
-            // Remove unused elements
-            this.bars.exit().remove();
-            this.groups.exit().remove();
-
-            // Insert new elements
-            this.groups.enter()
+            // Insert new group elements
+            groups.enter()
             .append('g')
             .attr("class", "stackedsection");
-            
-            this.bars.enter()
+
+            // Bind bar data
+            let bars: any = groups.selectAll(".bar")
+            .data(function(d){ return d; });
+
+            // Insert new rect elements
+            bars.enter()
             .append("rect")
             .classed('bar', true);
 
             // Update attributes
-            this.groups
+            groups
             .style("fill", function(d, i) { return colors[i]; });
 
-            this.bars
+            bars
             .attr("name", function(d: any){ return d.subcategory; })
             .attr("x", function(d: any) { return xScale(d.category); })
             .attr("y", function(d: any) { return yScale(d.y0 + d.y) })
             .attr("height", function(d: any) { return yScale(d.y0) - yScale(d.y0 + d.y); })
             .attr("width", xScale.rangeBand());
+
+            bars.on('click', function(d) {
+                // Allow selection only if the visual is rendered in a view that supports interactivity (e.g. Report)
+                if (allowInteractions) {
+                    selectionManager.select(d.selectionId).then((ids: ISelectionId[]) => {
+                        bars.attr({
+                            'fill-opacity': ids.length > 0 ? 0.2 : 1
+                        });
+                        d3.select(this).attr({
+                            'fill-opacity': 1
+                        });
+                    });
+
+                    (<Event>d3.event).stopPropagation();
+                }
+            });
+
+            // Remove unused elements
+            bars.exit().remove();
+            groups.exit().remove();
 
 
         }
