@@ -1,6 +1,4 @@
-import DataViewCategorical = powerbi.DataViewCategorical;
-import DataViewMetadataColumn = powerbi.DataViewMetadataColumn;
-import DataViewCategoryColumn = powerbi.DataViewCategoryColumn;
+
 import converterHelper = powerbi.extensibility.utils.dataview.converterHelper;
 
 module powerbi.extensibility.visual {
@@ -11,6 +9,8 @@ module powerbi.extensibility.visual {
      * @interface
      * @property {BarChartDataPoint[]} dataPoints - Set of data points the visual will render.
      * @property {number} dataMax                 - Maximum data value in the set of data points.
+     * @property {string[]} categories            - List of all the categories
+     * @property {string[]} subCategories         - List of all the subcategories
      */
     interface BarChartViewModel {
         dataPoints: BarChartDataPoint[];
@@ -22,12 +22,12 @@ module powerbi.extensibility.visual {
      * Interface for BarChart data points.
      *
      * @interface
-     * @property {number} value    - Data value for point.
-     * @property {string} category - Coresponding category of data value.
+     * @property {string} category      - Data value category.
+     * @property {number} category_num  - Category as a number.
      */
     interface BarChartDataPoint {category: string; category_num: number;};
 
-        /**
+     /**
      * Function that converts queried data into a view model that will be used by the visual.
      *
      * @function
@@ -37,7 +37,6 @@ module powerbi.extensibility.visual {
      * @param {IVisualHost} host            - Contains references to the host which contains services
      */
     function visualTransform(options: VisualUpdateOptions, host: IVisualHost): BarChartViewModel {
-        console.log(options.dataViews);
         let dataViews = options.dataViews;
         let defaultSettings = {
             enableAxis: {
@@ -70,13 +69,11 @@ module powerbi.extensibility.visual {
 
         let categorical = dataViews[0].categorical;
         let category = categorical.categories[0];
-        let metadata = dataViews[0].metadata;
         let categories: string[] = category.values.map(d => d.toString());
         let subCategories: string[] = [];
         let barChartDataPoints = [];
         let dataMax: number = 0;
         //let colorPalette: ISandboxExtendedColorPalette = host.colorPalette;
-        let objects = dataViews[0].metadata.objects;
 
 
         //const strokeColor: string = getColumnStrokeColor(colorPalette);
@@ -92,32 +89,6 @@ module powerbi.extensibility.visual {
                 helpLinkColor: strokeColor,
             },
         };*/
-        
-        /*for(let k = 0, len2 = category.values.length; k < len2; k++){
-            let dataPoint = {category: category.values[k]};
-
-            for(let j = 0, len1 = categorical.values.length; j < len1; j++){
-                let dataValue = categorical.values[j];
-                console.log(dataValue.values);
-                //const strokeWidth: number = getColumnStrokeWidth(colorPalette.isHighContrast);
-                for (let i = 0, len = Math.max(category.values.length, dataValue.values.length); i < len; i++) {
-                    //const color: string = getColumnColorByIndex(category, i, colorPalette);
-                    dataPoint[dataValue.source.displayName] = dataValue.values[i];
-                    if(stackedCategories.indexOf(dataValue.source.displayName) < 0){
-                        stackedCategories.push(dataValue.source.displayName);
-                    }
-                    const selectionId: ISelectionId = host.createSelectionIdBuilder()
-                        .withCategory(category, i)
-                        .createSelectionId();
-                    /*barChartDataPoints.push({
-                            name: `${dataValue.source.displayName}`,
-                            value: dataValue.values[i],
-                            category: `${category.values[i]}`
-                        });*/
-                //}
-            //}
-            //barChartDataPoints.push(dataPoint);
-        //}
         for(let i = 0, len = categories.length; i < len; i++){
             let point = {category: categories[i], category_num: i};
             barChartDataPoints[i] = point;
