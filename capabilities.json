@@ -1,0 +1,42 @@
+
+{
+    "dataRoles": [
+        {
+            "displayName": "Category",
+            "name": "category",
+            "kind": "Grouping"
+        },
+        {
+            "displayName": "Stacked category",
+            "name": "stackedcategory",
+            "kind": "Grouping"
+        },
+        {
+            "displayName": "Measure Data",
+            "name": "measure",
+            "kind": "Measure"
+        }
+    ],
+    "dataViewMappings": [
+        {
+            "categorical": {
+                "categories": {
+                    "for": {
+                        "in": "category"
+                    }
+                },
+                "values": {
+                    "group": {
+                        "by": "stackedcategory",
+                        "select": [{
+                                "for": {
+                                    "in": "measure"
+                                }
+                            }
+                        ]
+                    }
+                }
+            }
+        }
+    ]
+}

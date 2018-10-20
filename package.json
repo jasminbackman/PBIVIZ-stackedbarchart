@@ -1,0 +1,10 @@
+{
+  "name": "clusteredstackedchart",
+  "dependencies": {
+    "@types/d3": "^3.5.41",
+    "d3": "^3.5.17",
+    "lodash": "^4.17.11",
+    "powerbi-visuals-utils-dataviewutils": "^1.2.0"
+  },
+  "devDependencies": {}
+}
